@@ -262,10 +262,10 @@ function buildOrbitalGraph(node, pos, group, depth = 0, baseAngle = 0) {
    PRESET ENDPOINTS
 ═══════════════════════════════════════════════════════════════ */
 const PRESETS = [
-  { name: "Post",    url: "https://jsonplaceholder.typicode.com/posts/1" },
-  { name: "Users",   url: "https://jsonplaceholder.typicode.com/users" },
-  { name: "GitHub",  url: "https://api.github.com/repos/vercel/next.js" },
-  { name: "HTTPBin", url: "https://httpbin.org/json" },
+  { name: "Post",     url: "https://jsonplaceholder.typicode.com/posts/1" },
+  { name: "User",     url: "https://jsonplaceholder.typicode.com/users/1" },
+  { name: "Comments", url: "https://jsonplaceholder.typicode.com/posts/1/comments" },
+  { name: "HTTPBin",  url: "https://httpbin.org/json" },
 ];
 
 /* ═══════════════════════════════════════════════════════════════
