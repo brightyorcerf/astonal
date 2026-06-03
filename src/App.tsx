@@ -266,6 +266,11 @@ export default function ASTonal() {
   const errRef  = useRef<HTMLDivElement>(null);
   const astRef  = useRef<HTMLDivElement>(null);
 
+  // ── Panel parallax tilt ──────────────────────────────────────────────────
+  const panelTiltRef  = useRef({ rx: 0, ry: 0 });
+  const mousePosRef   = useRef({ x: 0, y: 0 });
+  const [panelTilt, setPanelTilt] = useState({ rx: 0, ry: 0 });
+
   // ── State ────────────────────────────────────────────────────────────────
   const [url,     setUrl]     = useState<string>(PRESETS[0].url);
   const [phase,   setPhase]   = useState<Phase>('idle');
@@ -303,6 +308,34 @@ export default function ASTonal() {
       );
     }
   }, [astInfo]);
+
+  // ── Panel parallax — rAF lerp loop, mousemove on window ─────────────────
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      mousePosRef.current = { x: e.clientX, y: e.clientY };
+    };
+    window.addEventListener('mousemove', onMove);
+
+    let raf: number;
+    const loop = () => {
+      const nx = (mousePosRef.current.x / window.innerWidth  - 0.5) * 2; // –1 → 1
+      const ny = (mousePosRef.current.y / window.innerHeight - 0.5) * 2;
+      const targetRx = ny * -2.8;
+      const targetRy = nx *  2.2;
+      const k = panelTiltRef.current;
+      const lerp = 0.055;
+      k.rx += (targetRx - k.rx) * lerp;
+      k.ry += (targetRy - k.ry) * lerp;
+      setPanelTilt({ rx: k.rx, ry: k.ry });
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
 
   // ── Font injection ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -600,7 +633,8 @@ export default function ASTonal() {
     <div style={{
       width: '100vw', height: '100vh', background: '#060610',
       display: 'flex', flexDirection: 'column', overflow: 'hidden',
-      fontFamily: "'JetBrains Mono','Courier New',monospace", color: '#9ab0c4',
+      fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', system-ui, sans-serif",
+      color: '#9ab0c4',
     }}>
       {/* Global styles + keyframes — spin/pulse kept as CSS; entrance animations via GSAP */}
       <style>{`
@@ -614,6 +648,42 @@ export default function ASTonal() {
         .analyze-btn:not(:disabled):hover{background:rgba(0,232,255,.18)!important;border-color:rgba(0,232,255,.6)!important;}
         .preset-chip:hover{border-color:rgba(0,232,255,.3)!important;color:#7ab!important;}
         .hdr-toggle:hover{border-color:rgba(0,232,255,.2)!important;}
+        .panel-hologram{
+          transform-style: preserve-3d;
+          will-change: transform;
+          background: linear-gradient(160deg, rgba(8,12,32,.96) 0%, rgba(5,7,20,.98) 60%, rgba(6,9,26,.97) 100%) !important;
+          box-shadow:
+            -18px 0 80px rgba(0,0,20,.75),
+            -1px 0 0 rgba(0,232,255,.12),
+            inset 1px 0 0 rgba(0,232,255,.05),
+            inset 0 1px 0 rgba(0,232,255,.06),
+            inset 0 0 60px rgba(0,232,255,.018) !important;
+          backdrop-filter: blur(14px) saturate(1.15);
+          -webkit-backdrop-filter: blur(14px) saturate(1.15);
+        }
+        .panel-hologram::before{
+          content:'';
+          position:absolute;
+          inset:0;
+          pointer-events:none;
+          z-index:100;
+          background: linear-gradient(
+            105deg,
+            rgba(0,232,255,.028) 0%,
+            transparent 40%,
+            rgba(174,77,255,.018) 70%,
+            transparent 100%
+          );
+          border-radius: inherit;
+        }
+        .panel-edge-glow{
+          position:absolute;
+          left:0;top:0;bottom:0;
+          width:1px;
+          background: linear-gradient(to bottom, transparent 0%, rgba(0,232,255,.35) 20%, rgba(0,232,255,.22) 50%, rgba(174,77,255,.2) 80%, transparent 100%);
+          pointer-events:none;
+          z-index:101;
+        }
       `}</style>
 
       {/* ══ HEADER ═══════════════════════════════════════════════ */}
@@ -635,7 +705,7 @@ export default function ASTonal() {
             fontFamily: "'Orbitron',sans-serif", fontSize: 14,
             fontWeight: 900, color: '#00e8ff', letterSpacing: 3.5, lineHeight: 1,
           }}>ASTONAL</div>
-          <div style={{ fontSize: 7.5, color: '#253545', letterSpacing: 1.6, marginTop: 2 }}>
+          <div style={{ fontSize: 7.5, color: '#253545', letterSpacing: 1.6, marginTop: 6 }}>
             API TELEMETRY · AST GEOMETRY · SONIC SYNTHESIS
           </div>
         </div>
@@ -729,11 +799,21 @@ export default function ASTonal() {
           )}
         </div>
 
-        {/* ── RIGHT CONTROL PANEL ───────────────────────────────── */}
+        {/* ── RIGHT CONTROL PANEL — holographic floating with cursor parallax ── */}
         <div style={{
-          width: 298, flexShrink: 0, display: 'flex', flexDirection: 'column',
-          overflow: 'hidden', background: 'rgba(5,7,20,.99)',
+          width: 298, flexShrink: 0,
+          perspective: '1100px', perspectiveOrigin: '0% 50%',
+          position: 'relative',
         }}>
+        <div className="panel-hologram" style={{
+          width: '100%', height: '100%',
+          display: 'flex', flexDirection: 'column',
+          overflow: 'hidden',
+          position: 'relative',
+          transform: `rotateX(${panelTilt.rx.toFixed(3)}deg) rotateY(${panelTilt.ry.toFixed(3)}deg)`,
+          transformOrigin: 'right center',
+        }}>
+        <div className="panel-edge-glow" />
           <div style={{ flex: 1, overflowY: 'auto', padding: '14px 14px 10px' }}>
 
             {/* URL Input */}
@@ -753,7 +833,7 @@ export default function ASTonal() {
                   border: '1px solid rgba(0,232,255,.17)',
                   borderRadius: 3, padding: '7px 9px',
                   fontSize: 9.5, color: '#c0d4e8',
-                  fontFamily: 'inherit', outline: 'none', transition: 'all .2s',
+                  fontFamily: "'JetBrains Mono','Courier New',monospace", outline: 'none', transition: 'all .2s',
                 }}
               />
             </div>
@@ -956,7 +1036,8 @@ export default function ASTonal() {
                 : 'AUDIO INITIALIZES ON FIRST ANALYZE'}
             </span>
           </div>
-        </div>
+        </div>{/* /panel-hologram */}
+        </div>{/* /perspective wrapper */}
       </div>
 
       {/* ══ FOOTER ═══════════════════════════════════════════════ */}
