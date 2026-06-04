@@ -29,7 +29,10 @@ function toAST(val: unknown, key: string, depth: number): InternalNode {
 
   if (Array.isArray(val)) {
     const children = val.slice(0, 12).map((v, i) => toAST(v, `[${i}]`, depth + 1));
-    return { id: uid(), key, type: 'array', depth, keyCount: val.length, children };
+    // keyCount is capped to the sliced child count — the full length is irrelevant for
+    // geometry selection and passing it raw (e.g. 400 for HP API) can produce degenerate
+    // platonic solids when the node is treated as a leaf.
+    return { id: uid(), key, type: 'array', depth, keyCount: children.length, children };
   }
 
   if (typeof val === 'object') {

@@ -26,6 +26,7 @@ function ssrfGuard(raw: string): string | null {
   let u: URL;
   try { u = new URL(raw); } catch { return 'Malformed URL — cannot parse'; }
   if (!/^https?:$/.test(u.protocol)) return 'Only HTTP / HTTPS allowed';
+  if (u.protocol === 'http:') return 'HTTP (non-HTTPS) will fail in production due to mixed content policy — use HTTPS endpoints.';
   const h = u.hostname.toLowerCase();
   const deny = ['localhost', '127.0.0.1', '0.0.0.0', '::1', '169.254.169.254', '::ffff:169.254.169.254'];
   if (deny.includes(h)) return `SSRF blocked: ${h}`;
@@ -203,6 +204,7 @@ export default function ASTonal() {
   const workerRef = useRef<Worker | null>(null);
   const isInit = useRef<boolean>(false);
   const running = useRef<boolean>(false);
+  const camRef = useRef<THREE.PerspectiveCamera | null>(null);
   const dragRef = useRef<{ on: boolean; x: number; y: number }>({ on: false, x: 0, y: 0 });
   const rotRef = useRef<{ x: number; y: number }>({ x: .14, y: 0 });
 
@@ -299,6 +301,7 @@ export default function ASTonal() {
     scene.fog = new THREE.Fog(0x000000, 18, 50);
     const cam = new THREE.PerspectiveCamera(55, W / H, .1, 100);
     cam.position.set(0, 0, 10);
+    camRef.current = cam;
 
     scene.add(new THREE.AmbientLight(0x111111, 0.7));
     const p1 = new THREE.PointLight(0xffffff, 2.2, 30); p1.position.set(6, 6, 5); scene.add(p1);
@@ -522,6 +525,21 @@ export default function ASTonal() {
           setPhase('building');
           setAstInfo({ nodes: graph.totalNodes, depth: graph.maxDepth, type: graph.rootType });
           buildMeshesFromGraph(graph, dg);
+
+          // Auto-fit camera to the built graph so it's always fully visible
+          const cam = camRef.current;
+          if (cam && dg.children.length > 0) {
+            const box = new THREE.Box3().setFromObject(dg);
+            const sphere = new THREE.Sphere();
+            box.getBoundingSphere(sphere);
+            const vFov = cam.fov * (Math.PI / 180);
+            const hFov = 2 * Math.atan(Math.tan(vFov / 2) * cam.aspect);
+            const fitFov = Math.min(vFov, hFov);
+            const dist = (sphere.radius / Math.sin(fitFov / 2)) * 1.35;
+            cam.position.set(sphere.center.x, sphere.center.y, sphere.center.z + dist);
+            cam.lookAt(sphere.center);
+            cam.updateProjectionMatrix();
+          }
         }
       }
       setPhase('done');
