@@ -74,13 +74,22 @@ class AudioEngine {
     osc.connect(env); env.connect(dst ?? this.masterGain!);
     osc.start(t0); osc.stop(t1 + 0.06); this.liveNodes.push(osc);
   }
-  play2xx(): void {
+  play2xx(seed: number = 0): void {
     this.kill(); const t = this.ctx!.currentTime;
-    [261.63, 293.66, 329.63, 392.00, 440.00, 523.25].forEach((f, i) => this.note(f, 'sine', 0.25, t + i * .12, t + i * .12 + 1.4));
+    // Transpose the arpeggio 0–6 semitones and vary note spacing so each
+    // distinct endpoint (different body length + latency) produces unique FFT peaks.
+    const st = 2 ** (1 / 12);
+    const rootShift = seed % 7;
+    const spacing = 0.08 + (Math.floor(seed / 7) % 8) * 0.013;
+    [261.63, 293.66, 329.63, 392.00, 440.00, 523.25]
+      .map(f => f * (st ** rootShift))
+      .forEach((f, i) => this.note(f, 'sine', 0.25, t + i * spacing, t + i * spacing + 1.4));
   }
-  play3xx(): void {
+  play3xx(seed: number = 0): void {
     this.kill(); const t = this.ctx!.currentTime;
-    const lyd = [261.63, 293.66, 329.63, 369.99, 392.00, 440.00, 493.88];
+    const st = 2 ** (1 / 12);
+    const rootShift = seed % 5;
+    const lyd = [261.63, 293.66, 329.63, 369.99, 392.00, 440.00, 493.88].map(f => f * (st ** rootShift));
     [0, 2, 4, 6, 1, 3, 5].forEach((idx, j) => this.note(lyd[idx], 'sine', 0.2, t + j * .16, t + j * .16 + .65));
   }
   play401(): void {
@@ -111,10 +120,10 @@ class AudioEngine {
     ws.curve = curve; ws.connect(this.masterGain!);
     [261.63, 277.18, 311.13, 329.63, 369.99, 392.00, 415.30, 440.00].forEach((f, i) => this.note(f, 'sawtooth', .28, t + i * .08, t + i * .08 + .88, ws));
   }
-  playForStatus(code: number): void {
+  playForStatus(code: number, seed: number = 0): void {
     if (!this.ctx) return;
-    if (code >= 200 && code < 300) this.play2xx();
-    else if (code >= 300 && code < 400) this.play3xx();
+    if (code >= 200 && code < 300) this.play2xx(seed);
+    else if (code >= 300 && code < 400) this.play3xx(seed);
     else if (code === 401 || code === 403) this.play401();
     else if (code === 404 || code === 408 || code === 0) this.play404();
     else if (code >= 500) this.play5xx();
@@ -127,7 +136,7 @@ class AudioEngine {
 /* ═══════════════════════════════════════════════════════════════
    THREE.JS
 ═══════════════════════════════════════════════════════════════ */
-const ORBIT_COLORS: number[] = [0xff6eb4, 0xc44dff, 0x5599ff, 0xffd700, 0xff8c42];
+const ORBIT_COLORS: number[] = [0xff6eb4, 0xc44dff, 0x5599ff, 0x4cbb17, 0xff8c42];
 const depthColor = (d: number): number => ORBIT_COLORS[d % ORBIT_COLORS.length];
 
 function getPlatonicGeo(k: number): THREE.BufferGeometry {
@@ -200,6 +209,8 @@ export default function ASTonal() {
   const astRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const statusNumRef = useRef<HTMLDivElement>(null);
+  const spectrumRef = useRef<HTMLCanvasElement>(null);
+  const spectrumColorRef = useRef<{ r: number; g: number; b: number }>({ r: 85, g: 153, b: 255 });
 
   const [url, setUrl] = useState<string>(PRESETS[0].url);
   const [phase, setPhase] = useState<Phase>('idle');
@@ -234,6 +245,14 @@ export default function ASTonal() {
   }, [astInfo]);
 
   useEffect(() => {
+    const s = tele?.status ?? 0;
+    if (s >= 200 && s < 300) spectrumColorRef.current = { r: 255, g: 215, b: 0 };
+    else if (s >= 300 && s < 400) spectrumColorRef.current = { r: 85, g: 153, b: 255 };
+    else if (s >= 400) spectrumColorRef.current = { r: 255, g: 110, b: 180 };
+    else spectrumColorRef.current = { r: 85, g: 153, b: 255 };
+  }, [tele]);
+
+  useEffect(() => {
     if (!btnRef.current) return;
     const tl = gsap.timeline({ repeat: -1, repeatDelay: 4 });
     tl.fromTo(btnRef.current.querySelector('.btn-shimmer') as Element, { x: '-110%' }, { x: '110%', duration: .65, ease: 'power2.inOut' });
@@ -254,6 +273,7 @@ export default function ASTonal() {
     isInit.current = true;
     const el = mountRef.current;
     const W = Math.max(el.clientWidth, 480), H = Math.max(el.clientHeight, 360);
+    if (spectrumRef.current) { spectrumRef.current.width = W; spectrumRef.current.height = 96; }
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(W, H);
@@ -270,7 +290,7 @@ export default function ASTonal() {
     scene.add(new THREE.AmbientLight(0x111111, 0.7));
     const p1 = new THREE.PointLight(0xff6eb4, 2.2, 30); p1.position.set(6, 6, 5); scene.add(p1);
     const p2 = new THREE.PointLight(0xc44dff, 1.6, 28); p2.position.set(-5, -5, 4); scene.add(p2);
-    const p3 = new THREE.PointLight(0xffd700, 0.9, 22); p3.position.set(0, 4, -3); scene.add(p3);
+    const p3 = new THREE.PointLight(0x4cbb17, 0.9, 22); p3.position.set(0, 4, -3); scene.add(p3);
     const p4 = new THREE.PointLight(0x5599ff, 1.0, 24); p4.position.set(-3, -6, 2); scene.add(p4);
 
     const sp = new Float32Array(2200 * 3);
@@ -287,7 +307,7 @@ export default function ASTonal() {
     ig.add(innerMesh);
     const ring1 = new THREE.Mesh(new THREE.TorusGeometry(1.45, .015, 6, 80), new THREE.MeshBasicMaterial({ color: 0x5599ff, transparent: true, opacity: .32 }));
     ring1.rotation.x = Math.PI / 4; ig.add(ring1);
-    const ring2 = new THREE.Mesh(new THREE.TorusGeometry(2.0, .012, 6, 80), new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: .2 }));
+    const ring2 = new THREE.Mesh(new THREE.TorusGeometry(2.0, .012, 6, 80), new THREE.MeshBasicMaterial({ color: 0x4cbb17, transparent: true, opacity: .2 }));
     ring2.rotation.x = -Math.PI / 3; ring2.rotation.y = Math.PI / 5; ig.add(ring2);
     const ring3 = new THREE.Mesh(new THREE.TorusGeometry(1.1, .01, 6, 60), new THREE.MeshBasicMaterial({ color: 0xff6eb4, transparent: true, opacity: .2 }));
     ring3.rotation.z = Math.PI / 6; ig.add(ring3);
@@ -322,6 +342,35 @@ export default function ASTonal() {
       }
       stars.rotation.y = t * .0045; stars.rotation.x = t * .0015;
       renderer.render(scene, cam);
+
+      // ── FFT spectrum overlay ─────────────────────────────────
+      const sc2 = spectrumRef.current;
+      if (sc2) {
+        const ctx2d = sc2.getContext('2d');
+        if (ctx2d) {
+          const SW = sc2.width, SH = sc2.height;
+          ctx2d.clearRect(0, 0, SW, SH);
+          const fftArr = audioRef.current.fftData;
+          const BINS = 64;
+          const step = Math.max(1, Math.floor(fftArr.length / BINS));
+          const barW = SW / BINS;
+          const { r, g, b } = spectrumColorRef.current;
+          ctx2d.shadowColor = `rgba(${r},${g},${b},0.55)`;
+          ctx2d.shadowBlur = 6;
+          for (let i = 0; i < BINS; i++) {
+            const val = fftArr[i * step] / 255;
+            const barH = val * SH;
+            if (barH < 1) continue;
+            const grd = ctx2d.createLinearGradient(0, SH - barH, 0, SH);
+            grd.addColorStop(0, `rgba(${r},${g},${b},0.88)`);
+            grd.addColorStop(0.6, `rgba(${r},${g},${b},0.35)`);
+            grd.addColorStop(1, `rgba(${r},${g},${b},0.05)`);
+            ctx2d.fillStyle = grd;
+            ctx2d.fillRect(i * barW + 1, SH - barH, barW - 2, barH);
+          }
+          ctx2d.shadowBlur = 0;
+        }
+      }
     }
     loop();
 
@@ -329,6 +378,7 @@ export default function ASTonal() {
       if (!el) return;
       const w = el.clientWidth, h = el.clientHeight;
       renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix();
+      if (spectrumRef.current) spectrumRef.current.width = w;
     };
     window.addEventListener('resize', onResize);
     return () => {
@@ -403,7 +453,10 @@ export default function ASTonal() {
       }
 
       setTele(res);
-      audioRef.current.playForStatus(res.status);
+      // Seed from body size XOR'd with rounded ttfb — gives distinct values per
+      // endpoint regardless of rounding, and drifts slightly each re-request.
+      const audioSeed = (res.body.length ^ Math.round(res.timing.ttfb * 3.7)) & 0xFF;
+      audioRef.current.playForStatus(res.status, audioSeed);
 
       if (res.status >= 200 && res.status < 300) setBgTint('rgba(255,215,0,.06)');
       else if (res.status >= 300 && res.status < 400) setBgTint('rgba(85,153,255,.06)');
@@ -440,9 +493,9 @@ export default function ASTonal() {
   // ── palette ─────────────────────────────────────────────────
   // sakura #ff6eb4  → CTA, errors, 4xx, interactive
   // cobalt #5599ff  → labels, info, 3xx, fast timing
-  // gold   #ffd700  → success, 2xx, AST data, highlights
+  // gold   #4cbb17  → success, 2xx, AST data, highlights
   const statusColor = (s: number): string => {
-    if (s >= 200 && s < 300) return '#ffd700';  // gold  — success
+    if (s >= 200 && s < 300) return '#4cbb17';  // gold  — success
     if (s >= 300 && s < 400) return '#5599ff';  // cobalt — redirect
     if (s >= 400) return '#ff6eb4';             // sakura — error
     return '#555';
@@ -453,7 +506,7 @@ export default function ASTonal() {
 
   const PHASE_COLOR: Record<Phase, string> = {
     idle: '#2e2e2e', validating: '#5599ff', fetching: '#5599ff',
-    parsing: '#ffd700', building: '#ff6eb4', done: '#ffd700', error: '#ff6eb4',
+    parsing: '#4cbb17', building: '#ff6eb4', done: '#4cbb17', error: '#ff6eb4',
   };
 
   /* ─────────────────────────────────────────────────────────────
@@ -518,8 +571,8 @@ export default function ASTonal() {
         }
         .label-cobalt { color: #5599ff; }
         .label-cobalt::before { background: #5599ff; }
-        .label-gold   { color: #ffd700; }
-        .label-gold::before   { background: #ffd700; }
+        .label-gold   { color: #4cbb17; }
+        .label-gold::before   { background: #4cbb17; }
       `}</style>
 
       {/* HEADER */}
@@ -534,7 +587,7 @@ export default function ASTonal() {
         <div style={{
           fontFamily: "'Orbitron',sans-serif",
           fontSize: 12, fontWeight: 900, letterSpacing: 4,
-          background: 'linear-gradient(90deg, #ff6eb4 0%, #ffd700 100%)',
+          background: 'linear-gradient(90deg, #ff6eb4 0%, #4cbb17 100%)',
           WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
           flexShrink: 0,
         }}>ASTONAL</div>
@@ -581,11 +634,25 @@ export default function ASTonal() {
           {([
             { top: 10, left: 10,   borderTop: '1.5px solid #ff6eb4', borderLeft: '1.5px solid #ff6eb4' },
             { top: 10, right: 10,  borderTop: '1.5px solid #5599ff', borderRight: '1.5px solid #5599ff' },
-            { bottom: 10, left: 10,  borderBottom: '1.5px solid #ffd700', borderLeft: '1.5px solid #ffd700' },
-            { bottom: 10, right: 10, borderBottom: '1.5px solid #ffd700', borderRight: '1.5px solid #ffd700' },
+            { bottom: 10, left: 10,  borderBottom: '1.5px solid #4cbb17', borderLeft: '1.5px solid #4cbb17' },
+            { bottom: 10, right: 10, borderBottom: '1.5px solid #4cbb17', borderRight: '1.5px solid #4cbb17' },
           ] as React.CSSProperties[]).map((s, i) => (
             <div key={i} style={{ position: 'absolute', width: 16, height: 16, pointerEvents: 'none', zIndex: 3, ...s }} />
           ))}
+
+          {/* FFT spectrum canvas overlay */}
+          <canvas
+            ref={spectrumRef}
+            style={{
+              position: 'absolute', bottom: 0, left: 0,
+              width: '100%', height: 96,
+              pointerEvents: 'none', zIndex: 2,
+              opacity: audioOn ? 0.92 : 0.18,
+              transition: 'opacity 1.2s ease',
+            }}
+            width={800}
+            height={96}
+          />
 
           {phase === 'idle' && (
             <div style={{
@@ -615,7 +682,7 @@ export default function ASTonal() {
                 <div style={{ position: 'relative', width: 42, height: 42, margin: '0 auto 14px' }}>
                   <div style={{ position: 'absolute', inset: 0,  border: '1.5px solid #141414', borderTop: '1.5px solid #ff6eb4', borderRadius: '50%', animation: 'spin .6s linear infinite' }} />
                   <div style={{ position: 'absolute', inset: 7,  border: '1.5px solid #141414', borderTop: '1.5px solid #5599ff', borderRadius: '50%', animation: 'spin .95s linear infinite reverse' }} />
-                  <div style={{ position: 'absolute', inset: 14, border: '1px solid #141414',   borderTop: '1px solid #ffd700',  borderRadius: '50%', animation: 'spin 1.45s linear infinite' }} />
+                  <div style={{ position: 'absolute', inset: 14, border: '1px solid #141414',   borderTop: '1px solid #4cbb17',  borderRadius: '50%', animation: 'spin 1.45s linear infinite' }} />
                 </div>
                 <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: 7, letterSpacing: 3, color: PHASE_COLOR[phase] }}>{phase}</div>
               </div>
@@ -728,7 +795,7 @@ export default function ASTonal() {
                 <div style={{ marginBottom: 16, paddingBottom: 14, borderBottom: '1px solid #141414' }}>
                   <div className="section-label label-cobalt" style={{ marginBottom: 10 }}>Timing</div>
                   {([['TTFB', tele.timing.ttfb], ['Total', tele.timing.total]] as [string, number][]).map(([label, val]) => {
-                    const barColor = val > 1200 ? '#ff6eb4' : val > 500 ? '#ffd700' : '#5599ff';
+                    const barColor = val > 1200 ? '#ff6eb4' : val > 500 ? '#4cbb17' : '#5599ff';
                     return (
                       <div key={label} style={{ marginBottom: 9 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
@@ -756,7 +823,7 @@ export default function ASTonal() {
                     ] as [string, string][]).map(([l, v]) => (
                       <div key={l} className="stat-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 6px', marginBottom: 1 }}>
                         <span style={{ fontSize: 9.5, color: '#3e3e3e' }}>{l}</span>
-                        <span style={{ fontSize: 11, fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: '#ffd700' }}>{v}</span>
+                        <span style={{ fontSize: 11, fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: '#4cbb17' }}>{v}</span>
                       </div>
                     ))}
                   </div>
@@ -802,9 +869,9 @@ export default function ASTonal() {
                 {tele.error && (
                   <div style={{
                     padding: '9px 11px', borderRadius: 5,
-                    border: '1px solid rgba(255,215,0,.22)', borderLeft: '2px solid #ffd700',
+                    border: '1px solid rgba(255,215,0,.22)', borderLeft: '2px solid #4cbb17',
                     background: 'rgba(255,215,0,.03)',
-                    fontSize: 10, color: '#ffd700', lineHeight: 1.65,
+                    fontSize: 10, color: '#4cbb17', lineHeight: 1.65,
                   }}>
                     ⚠ {tele.status === 408
                       ? 'Timed out after 14s. Server may be slow or unreachable.'
@@ -824,7 +891,7 @@ export default function ASTonal() {
                     <span key={i} style={{
                       display: 'inline-block', width: 2, borderRadius: 1,
                       height: `${h * 13}px`,
-                      background: i % 2 === 0 ? '#ff6eb4' : '#ffd700',
+                      background: i % 2 === 0 ? '#ff6eb4' : '#4cbb17',
                       animation: `pulse ${.55 + i * .13}s ease-in-out infinite`,
                       animationDelay: `${i * .09}s`,
                     }} />
@@ -846,7 +913,7 @@ export default function ASTonal() {
         flexShrink: 0, background: '#0A0A0A',
       }}>
         <span style={{ fontSize: 8.5, color: '#1e1e1e' }}>Telemetry via Vercel Edge Network (US-East)</span>
-        <span style={{ fontSize: 8, color: '#ffd700', fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Orbitron',sans-serif" }}>ASTONAL v1.0</span>
+        <span style={{ fontSize: 8, color: '#4cbb17', fontWeight: 700, letterSpacing: 1.5, fontFamily: "'Orbitron',sans-serif" }}>ASTONAL v1.0</span>
       </footer>
     </div>
   );
