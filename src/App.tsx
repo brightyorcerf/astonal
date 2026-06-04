@@ -211,6 +211,8 @@ export default function ASTonal() {
   const statusNumRef = useRef<HTMLDivElement>(null);
   const spectrumRef = useRef<HTMLCanvasElement>(null);
   const spectrumColorRef = useRef<{ r: number; g: number; b: number }>({ r: 85, g: 153, b: 255 });
+  const headerRef = useRef<HTMLElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   const [url, setUrl] = useState<string>(PRESETS[0].url);
   const [phase, setPhase] = useState<Phase>('idle');
@@ -388,6 +390,26 @@ export default function ASTonal() {
       try { el.removeChild(renderer.domElement); } catch { /**/ }
       isInit.current = false;
     };
+  }, []);
+
+  // Entrance animation
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      gsap.timeline({ defaults: { ease: 'power3.out' } })
+        .fromTo(headerRef.current,
+          { autoAlpha: 0, y: -18 },
+          { autoAlpha: 1, y: 0, duration: 0.42 },
+          0.05)
+        .fromTo(mountRef.current,
+          { autoAlpha: 0, scale: 0.97 },
+          { autoAlpha: 1, scale: 1, duration: 0.55, ease: 'power2.out' },
+          0.22)
+        .fromTo(panelRef.current,
+          { autoAlpha: 0, x: 32 },
+          { autoAlpha: 1, x: 0, duration: 0.42 },
+          0.34);
+    });
+    return () => ctx.revert();
   }, []);
 
   // Worker
@@ -581,7 +603,7 @@ export default function ASTonal() {
       `}</style>
 
       {/* HEADER */}
-      <header style={{
+      <header ref={headerRef} style={{
         display: 'flex', alignItems: 'center', gap: 12, padding: '0 20px',
         height: 52, flexShrink: 0,
         borderBottom: '1px solid #141414',
@@ -696,7 +718,7 @@ export default function ASTonal() {
         </div>
 
         {/* RIGHT PANEL */}
-        <div style={{
+        <div ref={panelRef} style={{
           width: 288, flexShrink: 0, display: 'flex', flexDirection: 'column',
           background: '#000000', overflow: 'hidden',
         }}>
