@@ -129,7 +129,7 @@ function telemetryProxyPlugin() {
             if (!isRedirect) {
               const chunks: Buffer[] = [];
               for await (const chunk of bodyStream) chunks.push(chunk as Buffer);
-              responseBody = Buffer.concat(chunks).toString('utf-8').slice(0, 4096);
+              responseBody = Buffer.concat(chunks).toString('utf-8').slice(0, 512_000);
             } else {
               bodyStream.destroy();
             }
