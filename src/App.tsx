@@ -183,12 +183,11 @@ function buildMeshesFromGraph(graph: OrbitalGraph, group: THREE.Group): void {
 const GRAIN_URL = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E\")";
 
 const PRESETS = [
-  { name: 'Comments', url: 'https://jsonplaceholder.typicode.com/posts/1/comments' },
+  { name: 'test', url: 'https://jsonplaceholder.typicode.com/posts/1/comments' },
   { name: 'Asteroid', url: 'https://api.nasa.gov/neo/rest/v1/neo/3542519?api_key=DEMO_KEY' },
   { name: 'Fireball', url: 'https://www.dnd5eapi.co/api/spells/fireball' },
-  { name: 'Denied',   url: 'https://api.github.com/user' },
-  { name: 'Ghost',    url: 'https://api.github.com/repos/xyznotarealuserxyz/nothing' },
-  { name: 'Fault',    url: 'https://httpbin.org/status/500' },
+  { name: 'Ghost', url: 'https://api.github.com/repos/xyznotarealuserxyz/nothing' },
+  { name: 'Fault', url: 'https://httpbin.org/status/500' },
 ] as const;
 
 type Phase = 'idle' | 'validating' | 'fetching' | 'parsing' | 'building' | 'done' | 'error';
@@ -704,9 +703,9 @@ export default function ASTonal() {
 
           {/* Corner brackets — all dim white, status colors pop when data arrives */}
           {([
-            { top: 10, left: 10,   borderTop: '1.5px solid rgba(255,255,255,0.15)', borderLeft: '1.5px solid rgba(255,255,255,0.15)' },
-            { top: 10, right: 10,  borderTop: '1.5px solid rgba(255,255,255,0.15)', borderRight: '1.5px solid rgba(255,255,255,0.15)' },
-            { bottom: 10, left: 10,  borderBottom: '1.5px solid rgba(255,255,255,0.15)', borderLeft: '1.5px solid rgba(255,255,255,0.15)' },
+            { top: 10, left: 10, borderTop: '1.5px solid rgba(255,255,255,0.15)', borderLeft: '1.5px solid rgba(255,255,255,0.15)' },
+            { top: 10, right: 10, borderTop: '1.5px solid rgba(255,255,255,0.15)', borderRight: '1.5px solid rgba(255,255,255,0.15)' },
+            { bottom: 10, left: 10, borderBottom: '1.5px solid rgba(255,255,255,0.15)', borderLeft: '1.5px solid rgba(255,255,255,0.15)' },
             { bottom: 10, right: 10, borderBottom: '1.5px solid rgba(255,255,255,0.15)', borderRight: '1.5px solid rgba(255,255,255,0.15)' },
           ] as React.CSSProperties[]).map((s, i) => (
             <div key={i} style={{ position: 'absolute', width: 16, height: 16, pointerEvents: 'none', zIndex: 4, ...s }} />
@@ -752,9 +751,9 @@ export default function ASTonal() {
             }}>
               <div style={{ textAlign: 'center' }}>
                 <div style={{ position: 'relative', width: 42, height: 42, margin: '0 auto 14px' }}>
-                  <div style={{ position: 'absolute', inset: 0,  border: '1.5px solid #141414', borderTop: '1.5px solid #ffffff', borderRadius: '50%', animation: 'spin .6s linear infinite' }} />
-                  <div style={{ position: 'absolute', inset: 7,  border: '1.5px solid #141414', borderTop: '1.5px solid #5599ff', borderRadius: '50%', animation: 'spin .95s linear infinite reverse' }} />
-                  <div style={{ position: 'absolute', inset: 14, border: '1px solid #141414',   borderTop: '1px solid #4cbb17',  borderRadius: '50%', animation: 'spin 1.45s linear infinite' }} />
+                  <div style={{ position: 'absolute', inset: 0, border: '1.5px solid #141414', borderTop: '1.5px solid #ffffff', borderRadius: '50%', animation: 'spin .6s linear infinite' }} />
+                  <div style={{ position: 'absolute', inset: 7, border: '1.5px solid #141414', borderTop: '1.5px solid #5599ff', borderRadius: '50%', animation: 'spin .95s linear infinite reverse' }} />
+                  <div style={{ position: 'absolute', inset: 14, border: '1px solid #141414', borderTop: '1px solid #4cbb17', borderRadius: '50%', animation: 'spin 1.45s linear infinite' }} />
                 </div>
                 <div style={{ fontFamily: "'Orbitron',sans-serif", fontSize: 7, letterSpacing: 3, color: PHASE_COLOR[phase] }}>{phase}</div>
               </div>
@@ -767,10 +766,10 @@ export default function ASTonal() {
           width: 288, flexShrink: 0, display: 'flex', flexDirection: 'column',
           background: '#000000', overflow: 'hidden',
           boxShadow: sc === '#4cbb17' ? 'inset 4px 0 32px rgba(76,187,23,0.11)'
-                   : sc === '#5599ff' ? 'inset 4px 0 32px rgba(85,153,255,0.11)'
-                   : sc === '#ff8c42' ? 'inset 4px 0 32px rgba(255,140,66,0.11)'
-                   : sc              ? 'inset 4px 0 32px rgba(255,255,255,0.07)'
-                   : 'none',
+            : sc === '#5599ff' ? 'inset 4px 0 32px rgba(85,153,255,0.11)'
+              : sc === '#ff8c42' ? 'inset 4px 0 32px rgba(255,140,66,0.11)'
+                : sc ? 'inset 4px 0 32px rgba(255,255,255,0.07)'
+                  : 'none',
           transition: 'box-shadow 1.4s ease',
         }}>
           <div style={{ flex: 1, overflowY: 'auto', padding: '18px 16px 14px' }}>
