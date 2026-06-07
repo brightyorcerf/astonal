@@ -48,7 +48,7 @@ class AudioEngine {
   analyser: AnalyserNode | null = null;
   masterGain: GainNode | null = null;
   liveNodes: OscillatorNode[] = [];
-  fftData: Uint8Array = new Uint8Array(256);
+  fftData: Uint8Array<ArrayBuffer> = new Uint8Array(256);
 
   init(): void {
     if (this.ctx) return;
